@@ -1,5 +1,6 @@
 package com.example.detector.job;
 
+import com.example.detector.config.NewPayloadData;
 import com.example.detector.config.PayloadLogProducer;
 import com.example.detector.domain.comment.model.Comments;
 import com.example.detector.domain.comment.model.NewCommentsPayloadData;
@@ -317,128 +318,73 @@ public class OracleToKafkaJob {
         for(Map<String,Object> event : events){
             String tableName = event.get("TABLE_NAME").toString();
             String operation = event.get("OPERATION").toString();
-            log.info(">>> 이벤트 수신 ...");
-            log.info(">>> TABLE_NAME : " + tableName);
-            log.info(">>> OPERATION : " + operation);
+            String rowId = event.get("ROW_ID").toString();
+            String logToString = "";
 
-            if(tableName.equals("COMMENTS")){
-                String topic = "comment_payload_log";
-                if(operation.equals("DELETE")){
-                    Long idx = Long.parseLong(event.get("SQL_REDO").toString().split("'")[1]);
-                    payloadLogProducer.sendNewCommentsPayloadLogCaptureMessage(
-                            NewCommentsPayloadData.builder()
-                                    .operation(operation)
-                                    .commentsIdx(idx)
-                                    .build(),
-                            topic);
-                }else{
-                    Optional<Comments> optional = commentsRepository.findByRowId(event.get("ROW_ID").toString());
+            log.info(">>> 변경 로그 처리 ...");
+            log.info(">>> TABLE_NAME : "+tableName);
+            log.info(">>> OPERATION : "+operation);
+            log.info(">>> ROWID : "+rowId);
+
+            if(operation.equals("DELETE")){
+                logToString = event.get("SQL_REDO").toString().split("'")[1];
+            }
+            else{
+                if(tableName.equals("COMMENTS")){
+                    Optional<Comments> optional = commentsRepository.findByRowId(rowId);
                     if(optional.isPresent()){
-                        Comments comments = optional.get();
-                        payloadLogProducer.sendNewCommentsPayloadLogCaptureMessage(comments.toDto(operation), topic);
+                        logToString = optional.get().logToString();
                     }else{
-                        log.info("존재하지 않는 row : "+event.get("ROW_ID").toString());
+                        log.info("존재하지 않는 ROW : "+rowId);
                     }
-                }
-            }else if(tableName.equals("EMOJI")){
-                String topic = "emoji_payload_log";
-                if(operation.equals("DELETE")){
-                    Long idx = Long.parseLong(event.get("SQL_REDO").toString().split("'")[1]);
-                    payloadLogProducer.sendNewEmojiPayloadLogCaptureMessage(
-                            NewEmojiPayloadData.builder()
-                                    .operation(operation)
-                                    .emojiIdx(idx)
-                                    .build(),
-                            topic);
-                }else{
-                    Optional<Emoji> optional = emojiRepository.findByRowId(event.get("ROW_ID").toString());
-                    if(optional.isPresent()) {
-                        Emoji emoji = optional.get();
-                        payloadLogProducer.sendNewEmojiPayloadLogCaptureMessage(emoji.toDto(operation), topic);
-                    }else{
-                        log.info("존재하지 않는 row : "+event.get("ROW_ID").toString());
-                    }
-                }
-            }
-            if (tableName.equals("INTERACTION")) {
-                String topic = "interaction_payload_log";
-                if (operation.equals("DELETE")) {
-                    Long idx = Long.parseLong(event.get("SQL_REDO").toString().split("'")[1]);
-                    payloadLogProducer.sendNewInteractionPayloadLogCaptureMessage(
-                            NewInteractionPayloadData.builder()
-                                    .operation(event.get("OPERATION").toString())
-                                    .interactionIdx(idx)
-                                    .build(),
-                            topic);
-                } else {
-                    Optional<Interaction> optional = interactionRepository.findByRowId(event.get("ROW_ID").toString());
-                    if(optional.isPresent()) {
-                        Interaction interaction = optional.get();
-                        payloadLogProducer.sendNewInteractionPayloadLogCaptureMessage(interaction.toDto(operation), topic);
-                    }else{
-                        log.info("존재하지 않는 row : "+event.get("ROW_ID").toString());
-                    }
-                }
-            }
-            else if(tableName.equals("POST")){
-                String topic = "post_payload_log";
-                if(operation.equals("DELETE")){
-                    Long idx = Long.parseLong(event.get("SQL_REDO").toString().split("'")[1]);
-                    payloadLogProducer.sendNewPostPayloadLogCaptureMessage(
-                            NewPostPayloadData.builder()
-                                    .operation(operation)
-                                    .postIdx(idx)
-                                    .build(),
-                            topic);
-                }else{
-                    Optional<Post> optional = postRepository.findByRowId(event.get("ROW_ID").toString());
+                }else if(tableName.equals("EMOJI")){
+                    Optional<Emoji> optional = emojiRepository.findByRowId(rowId);
                     if(optional.isPresent()){
-                        Post post = optional.get();
-                        payloadLogProducer.sendNewPostPayloadLogCaptureMessage(post.toDto(operation), topic);
+                        logToString = optional.get().logToString();
                     }else{
-                        log.info("존재하지 않는 row : "+event.get("ROW_ID").toString());
+                        log.info("존재하지 않는 ROW : "+rowId);
                     }
-                }
-            }
-            else if(tableName.equals("ROLE")){
-                String topic = "role_payload_log";
-                if(operation.equals("DELETE")){
-                    Long idx = Long.parseLong(event.get("SQL_REDO").toString().split("'")[1]);
-                    payloadLogProducer.sendNewRolePayloadLogCaptureMessage(
-                            NewRolePayloadData.builder()
-                                    .operation(operation)
-                                    .roleIdx(idx)
-                                    .build(),
-                            topic);
-                }else{
-                    Optional<Role> optional = roleRepository.findByRowId(event.get("ROW_ID").toString());
+                }else if(tableName.equals("INTERACTION")){
+                    Optional<Interaction> optional = interactionRepository.findByRowId(rowId);
                     if(optional.isPresent()){
-                        Role role = optional.get();
-                        payloadLogProducer.sendNewRolePayloadLogCaptureMessage(role.toDto(operation), topic);
+                        logToString = optional.get().logToString();
                     }else{
-                        log.info("존재하지 않는 row : "+event.get("ROW_ID").toString());
+                        log.info("존재하지 않는 ROW : "+rowId);
                     }
-                }
-            }else if(tableName.equals("USERS")){
-                String topic = "user_payload_log";
-                if(operation.equals("DELETE")){
-                    Long idx = Long.parseLong(event.get("SQL_REDO").toString().split("'")[1]);
-                    payloadLogProducer.sendNewUserPayloadLogCaptureMessage(
-                            NewUsersPayloadData.builder()
-                                    .operation(event.get("OPERATION").toString())
-                                    .userIdx(idx)
-                                    .build(),
-                            topic);
-                }else{
-                    Optional<Users> optional = userRepository.findByRowId(event.get("ROW_ID").toString());
-                    if(optional.isPresent()) {
-                        Users user = optional.get();
-                        payloadLogProducer.sendNewUserPayloadLogCaptureMessage(user.toDto(operation), topic);
+                }else if(tableName.equals("POST")){
+                    Optional<Post> optional = postRepository.findByRowId(rowId);
+                    if(optional.isPresent()){
+                        logToString = optional.get().logToString();
                     }else{
-                        log.info("존재하지 않는 row : "+event.get("ROW_ID").toString());
+                        log.info("존재하지 않는 ROW : "+rowId);
+                    }
+                }else if(tableName.equals("ROLE")){
+                    Optional<Role> optional = roleRepository.findByRowId(rowId);
+                    if(optional.isPresent()){
+                        logToString = optional.get().logToString();
+                    }else{
+                        log.info("존재하지 않는 ROW : "+rowId);
+                    }
+                }else if(tableName.equals("USERS")){
+                    Optional<Users> optional = userRepository.findByRowId(rowId);
+                    if(optional.isPresent()){
+                        logToString = optional.get().logToString();
+                    }else{
+                        log.info("존재하지 않는 ROW : "+rowId);
                     }
                 }
             }
+
+
+            if(logToString.length() > 0){
+                payloadLogProducer.sendNewPayloadLogCaptureMessage(
+                        NewPayloadData.builder()
+                                .operation(operation)
+                                .tableName(tableName)
+                                .log(logToString)
+                                .build());
+            }
+
         }
     }
 

@@ -39,4 +39,8 @@ public class Users{
                 .roleIdx(role.getIdx())
                 .build();
     }
+
+    public String logToString() {
+        return idx+","+name+","+role.getIdx();
+    }
 }

@@ -10,6 +10,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
+
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Getter;
@@ -27,6 +29,9 @@ public class Post{
     @JoinColumn(name = "users_idx")
     private Users user;
 
+    private LocalDateTime createdAt;
+    private LocalDateTime modifiedAt;
+
     @OneToMany(mappedBy = "post")
     private List<Comments> comments = new ArrayList<>();
 
@@ -36,5 +41,8 @@ public class Post{
                 .postIdx(idx)
                 .userIdx(user.getIdx())
                 .build();
+    }
+    public String logToString() {
+        return idx+","+createdAt+","+modifiedAt+","+user.getIdx();
     }
 }

@@ -30,4 +30,7 @@ public class Role{
                 .name(name)
                 .build();
     }
+    public String logToString() {
+        return idx+","+name;
+    }
 }

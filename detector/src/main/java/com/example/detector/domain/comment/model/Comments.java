@@ -62,6 +62,9 @@ public class Comments{
                 .content(content)
                 .build();
     }
+    public String logToString(){
+        return idx+","+content+","+post.getIdx()+","+user.getIdx()+","+parent.getIdx();
+    }
 
 //    public NewCommentsPayloadData toDto(String opteration){
 //        return NewCommentsPayloadData.builder()

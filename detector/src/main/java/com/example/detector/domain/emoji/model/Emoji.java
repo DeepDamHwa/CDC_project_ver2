@@ -35,4 +35,7 @@ public class Emoji{
                 .name(name)
                 .build();
     }
+    public String logToString(){
+        return idx+","+name;
+    }
 }
