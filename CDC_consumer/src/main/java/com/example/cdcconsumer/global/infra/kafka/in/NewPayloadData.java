@@ -5,6 +5,9 @@ import lombok.Getter;
 
 @Getter
 public class NewPayloadData {
+    private String operation;
+    private String tableName;
+    private String log;
 //    private String operation;
 //    private String tableName;
 //    private Long interactionIdx;

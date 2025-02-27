@@ -18,6 +18,7 @@ import com.example.cdcconsumer.domain.role.repository.RoleRepository;
 import com.example.cdcconsumer.domain.user.NewUsersPayloadData;
 import com.example.cdcconsumer.domain.user.User;
 import com.example.cdcconsumer.domain.user.repository.UserRepository;
+import com.example.cdcconsumer.global.annotation.Timer;
 import com.example.cdcconsumer.global.infra.kafka.out.DataProducer;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
@@ -27,8 +28,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
-@Component
 @Slf4j
+@Component
 @RequiredArgsConstructor
 public class Consumer {
     private final InteractionRepository interactionRepository;
@@ -37,176 +38,97 @@ public class Consumer {
     private final EmojiRepository emojiRepository;
     private final PostRepository postRepository;
     private final RoleRepository roleRepository;
-    private final DataProducer dataProducer;
 
-    @KafkaListener(topics = "comment_payload_log", groupId = "comment_payload_group", containerFactory = "commentKafkaListenerContainerFactory")
-    public void consumeComment(NewCommentsPayloadData newCommentsPayloadData) {
-        System.out.println("이벤트 수신...");
-        String operation = newCommentsPayloadData.getOperation();
+    @Timer
+    @KafkaListener(topics = "payload_log", groupId = "payload_group", containerFactory = "kafkaListenerContainerFactory")
+    public void consume(NewPayloadData newPayloadData) {
+        String operation = newPayloadData.getOperation();
+        String tableName = newPayloadData.getTableName();
+        String logInfo = newPayloadData.getLog();
+
+        log.info(">>> 이벤트 수신 ...");
+        log.info(">>> TABLE_NAME : "+tableName);
+        log.info(">>> OPERATION : "+operation);
+
         try {
-            System.out.println("Comment");
-            System.out.println(operation);
-            System.out.println(newCommentsPayloadData.getCommentsIdx());
-            if (operation.equals("DELETE")) {
-//                Comment comment = commentRepository.findById(newCommentsPayloadData.getCommentsIdx()).orElseThrow();
-                commentRepository.deleteById(newCommentsPayloadData.getCommentsIdx());
-            } else {
-                Comment comment = Comment.builder()
-                        .idx(newCommentsPayloadData.getCommentsIdx())
-                        .post(Post.builder().idx(newCommentsPayloadData.getPostIdx()).build())
-                        .user(User.builder().idx(newCommentsPayloadData.getUserIdx()).build())
-                        .parent(Comment.builder().idx(newCommentsPayloadData.getParentIdx()).build())
-                        .content(newCommentsPayloadData.getContent())
-                        .build();
-                commentRepository.save(comment);
+            if(tableName.equals("COMMENTS")){
+                consumeComment(operation, logInfo);
+            }else if(tableName.equals("EMOJI")){
+                consumeEmoji(operation,logInfo);
+            }else if(tableName.equals("INTERACTION")){
+                consumeInteraction(operation,logInfo);
+            }else if(tableName.equals("POST")){
+                consumePost(operation,logInfo);
+            }else if(tableName.equals("ROLE")){
+                consumeRole(operation,logInfo);
+            }else if(tableName.equals("USERS")){
+                consumeUser(operation,logInfo);
             }
-            log.info("comment 처리 완료... "+String.valueOf(LocalDateTime.now()));
+
         } catch (Exception e) {
             System.out.println("예외 발생");
             e.printStackTrace();
-            //실패시 Dead Letter에 메시지 발행
-            dataProducer.sendCommentDeadLetter(newCommentsPayloadData);
-            log.info("comment 처리 실패... "+String.valueOf(LocalDateTime.now()));
         }
 
     }
 
-    @KafkaListener(topics = "user_payload_log", groupId = "user_payload_group", containerFactory = "userKafkaListenerContainerFactory")
-    public void consumeUser(NewUsersPayloadData newUsersPayloadData) {
-        System.out.println("이벤트 수신...");
-        String operation = newUsersPayloadData.getOperation();
-        try {
-            System.out.println("User");
-            System.out.println(operation);
-            System.out.println(newUsersPayloadData.getUserIdx());
-            if (operation.equals("DELETE")) {
-//                User user = userRepository.findById(newUsersPayloadData.getUserIdx()).orElseThrow();
-                userRepository.deleteById(newUsersPayloadData.getUserIdx());
-            } else {
-                User user = User.builder()
-                        .idx(newUsersPayloadData.getUserIdx())
-                        .role(Role.builder().idx(newUsersPayloadData.getRoleIdx()).build())
-                        .name(newUsersPayloadData.getName())
-                        .build();
-                userRepository.save(user);
-            }
-            log.info("user 처리 완료... "+String.valueOf(LocalDateTime.now()));
-        } catch (Exception e) {
-            System.out.println("예외 발생");
-            e.printStackTrace();
-            dataProducer.sendUserDeadLetter(newUsersPayloadData);
-            log.info("user 처리 실패... "+String.valueOf(LocalDateTime.now()));
+    public void consumeComment(String operation, String log) {
+        if (operation.equals("DELETE")) {
+            commentRepository.deleteById(Long.parseLong(log));
+        } else {
+            String[] logs = log.split(",");
+            Comment comment = new Comment(logs);
+            commentRepository.save(comment);
         }
     }
 
-    @KafkaListener(topics = "emoji_payload_log", groupId = "emoji_payload_group", containerFactory = "emojiKafkaListenerContainerFactory")
-    public void consumeEmoji(NewEmojiPayloadData newEmojiPayloadData) {
-        System.out.println("이벤트 수신...");
-        String operation = newEmojiPayloadData.getOperation();
-
-        try {
-            System.out.println("Emoji");
-            System.out.println(operation);
-            System.out.println(newEmojiPayloadData.getEmojiIdx());
-            if (operation.equals("DELETE")) {
-                emojiRepository.deleteById(newEmojiPayloadData.getEmojiIdx());
-            } else {
-                Emoji emoji = Emoji.builder()
-                    .idx(newEmojiPayloadData.getEmojiIdx())
-                    .name(newEmojiPayloadData.getName())
-                    .build();
-                emojiRepository.save(emoji);
-            }
-            log.info("emoji 처리 완료... "+String.valueOf(LocalDateTime.now()));
-        } catch (Exception e) {
-            System.out.println("예외 발생");
-            e.printStackTrace();
-            dataProducer.sendEmojiDeadLetter(newEmojiPayloadData);
-            log.info("emoji 처리 실패... "+String.valueOf(LocalDateTime.now()));
+    public void consumeEmoji(String operation, String log) {
+        if (operation.equals("DELETE")) {
+            emojiRepository.deleteById(Long.parseLong(log));
+        } else {
+            String[] logs = log.split(",");
+            Emoji emoji = new Emoji(logs);
+            emojiRepository.save(emoji);
         }
     }
 
-    @KafkaListener(topics = "role_payload_log", groupId = "role_payload_group", containerFactory = "roleKafkaListenerContainerFactory")
-    public void consumeRole(NewRolePayloadData newRolePayloadData) {
-        System.out.println("이벤트 수신...");
-        String operation = newRolePayloadData.getOperation();
-        try {
-            System.out.println("Role");
-            System.out.println(operation);
-            System.out.println(newRolePayloadData.getRoleIdx());
-            if (operation.equals("DELETE")) {
-//                Role role = roleRepository.findById(newRolePayloadData.getRoleIdx()).orElseThrow();
-                roleRepository.deleteById(newRolePayloadData.getRoleIdx());
-            } else {
-                Role role = Role.builder().
-                        idx(newRolePayloadData.getRoleIdx())
-                        .name(newRolePayloadData.getName())
-                        .build();
-                roleRepository.save(role);
-            }
-            log.info("role 처리 완료... "+String.valueOf(LocalDateTime.now()));
-        } catch (Exception e) {
-            System.out.println("예외 발생");
-            e.printStackTrace();
-            dataProducer.sendRoleDeadLetter(newRolePayloadData);
-            log.info("role 처리 실패... "+String.valueOf(LocalDateTime.now()));
+    public void consumeInteraction(String operation, String log) {
+        if (operation.equals("DELETE")) {
+            interactionRepository.deleteById(Long.parseLong(log));
+        } else {
+            String[] logs = log.split(",");
+            Interaction interaction = new Interaction(logs);
+            interactionRepository.save(interaction);
         }
     }
 
-    @KafkaListener(topics = "interaction_payload_log", groupId = "interaction_payload_group", containerFactory = "interactionKafkaListenerContainerFactory")
-    public void consumeInteraction(NewInteractionPayloadData newInteractionPayloadData) {
-        System.out.println("이벤트 수신...");
-        String operation = newInteractionPayloadData.getOperation();
-
-        try {
-            System.out.println("Interation");
-            System.out.println(operation);
-            System.out.println(newInteractionPayloadData.getInteractionIdx());
-            if (operation.equals("DELETE")) {
-//                Interaction interaction = interactionRepository.findById(newInteractionPayloadData.getInteractionIdx()).orElseThrow();
-                interactionRepository.deleteById(newInteractionPayloadData.getInteractionIdx());
-            } else {
-                Interaction interaction = Interaction.builder()
-                        .idx(newInteractionPayloadData.getInteractionIdx())
-                        .comment(Comment.builder().idx(newInteractionPayloadData.getCommentIdx()).build())
-                        .user(User.builder().idx(newInteractionPayloadData.getUserIdx()).build())
-                        .emoji(Emoji.builder().idx(newInteractionPayloadData.getEmojiIdx()).build()).build();
-                interactionRepository.save(interaction);
-            }
-            log.info("interaction 처리 완료... "+String.valueOf(LocalDateTime.now()));
-        } catch (Exception e) {
-            System.out.println("예외 발생");
-            e.printStackTrace();
-            dataProducer.sendInteractionDeadLetter(newInteractionPayloadData);
-            log.info("interaction 처리 실패... "+String.valueOf(LocalDateTime.now()));
+    public void consumePost(String operation, String log) {
+        if (operation.equals("DELETE")) {
+            postRepository.deleteById(Long.parseLong(log));
+        } else {
+            String[] logs = log.split(",");
+            Post post = new Post(logs);
+            postRepository.save(post);
         }
     }
 
-    @KafkaListener(topics = "post_payload_log", groupId = "post_payload_group", containerFactory = "postKafkaListenerContainerFactory")
-    public void consumePost(NewPostPayloadData newPostPayloadData) {
-        System.out.println("이벤트 수신...");
-        String operation = newPostPayloadData.getOperation();
+    public void consumeRole(String operation, String log) {
+        if (operation.equals("DELETE")) {
+            roleRepository.deleteById(Long.parseLong(log));
+        } else {
+            String[] logs = log.split(",");
+            Role role = new Role(logs);
+            roleRepository.save(role);
+        }
+    }
 
-        try {
-            System.out.println("Post");
-            System.out.println(operation);
-            System.out.println(newPostPayloadData.getPostIdx());
-            if (operation.equals("DELETE")) {
-//                Post post = postRepository.findById(newPostPayloadData.getPostIdx()).orElseThrow();
-                postRepository.deleteById(newPostPayloadData.getPostIdx());
-            } else {
-                Post post = Post.builder()
-                        .idx(newPostPayloadData.getPostIdx())
-                        .user(User.builder().idx(newPostPayloadData.getUserIdx()).build())
-                        .build();
-                postRepository.save(post);
-            }
-            log.info("post 처리 완료... "+String.valueOf(LocalDateTime.now()));
-        } catch (Exception e) {
-            System.out.println("예외 발생");
-            e.printStackTrace();
-            dataProducer.sendPostDeadLetter(newPostPayloadData);
-            log.info("post 처리 실패... "+String.valueOf(LocalDateTime.now()));
+    public void consumeUser(String operation, String log) {
+        if (operation.equals("DELETE")) {
+            userRepository.deleteById(Long.parseLong(log));
+        } else {
+            String[] logs = log.split(",");
+            User user = new User(logs);
+            userRepository.save(user);
         }
     }
 }
