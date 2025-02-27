@@ -50,6 +50,8 @@ public class Comment {
         this.content = logs[1];
         this.post = Post.builder().idx(Long.parseLong(logs[2])).build();
         this.user = User.builder().idx(Long.parseLong(logs[3])).build();
-        this.parent = Comment.builder().idx(Long.parseLong(logs[4])).build();
+        if(!logs[4].equals("null")){
+            this.parent = Comment.builder().idx(Long.parseLong(logs[4])).build();
+        }
     }
 }

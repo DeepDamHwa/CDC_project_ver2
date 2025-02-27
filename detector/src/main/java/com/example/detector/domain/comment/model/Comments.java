@@ -63,7 +63,11 @@ public class Comments{
                 .build();
     }
     public String logToString(){
-        return idx+","+content+","+post.getIdx()+","+user.getIdx()+","+parent.getIdx();
+        if (parent == null){
+            return idx+","+content+","+post.getIdx()+","+user.getIdx()+","+"null";
+        }else{
+            return idx+","+content+","+post.getIdx()+","+user.getIdx()+","+parent.getIdx();
+        }
     }
 
 //    public NewCommentsPayloadData toDto(String opteration){
