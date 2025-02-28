@@ -20,6 +20,8 @@ import com.example.detector.domain.role.repository.RoleRepository;
 import com.example.detector.domain.user.model.NewUsersPayloadData;
 import com.example.detector.domain.user.model.Users;
 import com.example.detector.domain.user.repository.UserRepository;
+
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -85,6 +87,7 @@ public class OracleToKafkaJob {
         return ((contribution, chunkContext) -> {
 
             log.info(">>>>> Starting Read Last Work");
+            log.info(">>>>> START_TIME: "+ LocalDateTime.now());
             // save work 테이블에서 이전 배치 작업 내용 추출
             String readSaveWorkSql = String.format(
                     """
@@ -310,6 +313,7 @@ public class OracleToKafkaJob {
             }else{
                 log.info("readChangeLogDataStep에 보내진 변경 데이터가 없습니다.");
             }
+            log.info(">>> END_TIME: "+LocalDateTime.now());
             return RepeatStatus.FINISHED;
         });
     }

@@ -49,6 +49,7 @@ public class Consumer {
         log.info(">>> 이벤트 수신 ...");
         log.info(">>> TABLE_NAME : "+tableName);
         log.info(">>> OPERATION : "+operation);
+        log.info(">>> START_TIME: "+LocalDateTime.now());
 
         try {
             if(tableName.equals("COMMENTS")){
@@ -64,10 +65,10 @@ public class Consumer {
             }else if(tableName.equals("USERS")){
                 consumeUser(operation,logInfo);
             }
-
+            log.info(">>> END_TIME: "+LocalDateTime.now());
         } catch (Exception e) {
-            System.out.println("예외 발생");
-            e.printStackTrace();
+            log.info(">>> 예외 발생!!! ERROR : "+e.getMessage());
+            log.info(">>> END_TIME: "+LocalDateTime.now());
         }
 
     }
